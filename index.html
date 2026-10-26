@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mouse Double Click & Hardware Tester</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            dark: '#0a0d14',
+                            card: '#121824',
+                            border: '#1e293b',
+                            accent: '#ff6b00',
+                            error: '#ff2a5f',
+                            success: '#00e676',
+                            info: '#00b0ff'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Custom scrollbar for dark cyber theme */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0a0d14;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+
+        /* Pulse animation for error state */
+        @keyframes flash-red {
+            0% { background-color: rgba(255, 42, 95, 0.9); border-color: #ff2a5f; box-shadow: 0 0 30px rgba(255, 42, 95, 0.6); }
+            100% { background-color: var(--default-bg); border-color: var(--default-border); box-shadow: none; }
+        }
+        @keyframes flash-green {
+            0% { background-color: rgba(0, 230, 118, 0.25); border-color: #00e676; box-shadow: 0 0 20px rgba(0, 230, 118, 0.3); }
+            100% { background-color: var(--default-bg); border-color: var(--default-border); box-shadow: none; }
+        }
+
+        .test-box-error {
+            animation: flash-red 0.4s ease-out forwards;
+        }
+        .test-box-success {
+            animation: flash-green 0.25s ease-out forwards;
+        }
+
+        /* Prevent text selection in interactive area */
+        .no-select {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+    </style>
+</head>
+<body class="bg-cyber-dark text-slate-200 min-h-screen font-sans flex flex-col justify-between antialiased selection:bg-cyber-accent selection:text-white">
+
+    <!-- Header Navigation -->
+    <header class="border-b border-cyber-border bg-cyber-card/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-orange-500/20">
+                    <i class="fa-solid font-mono fa-computer-mouse"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight text-white leading-none">Mouse Hardware & Double-Click Tester</h1>
+                    <p class="text-xs text-slate-400 mt-0.5">Detect mouse chattering, switch bounce & latency errors</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-3">
+                <button id="reset-btn" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 transition flex items-center gap-2 text-sm font-medium shadow-sm active:scale-95">
+                    <i class="fa-solid fa-rotate-right text-xs"></i> Reset Stats
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full grow grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left Column: Settings & Key Metrics Summary (4 Cols) -->
+        <div class="lg:col-span-4 flex flex-col gap-6">
+            
+            <!-- Config / Settings Card -->
+            <div class="bg-cyber-card border border-cyber-border rounded-2xl p-5 shadow-xl">
+                <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-cyber-accent"></i> Detection Settings
+                </h2>
+                
+                <!-- Threshold Slider -->
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <label for="threshold-slider" class="text-sm font-medium text-slate-300">
+                            Chatter Threshold:
+                        </label>
+                        <span id="threshold-val" class="font-mono font-bold text-cyber-accent bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20 text-sm">
+                            80 ms
+                        </span>
+                    </div>
+                    <input type="range" id="threshold-slider" min="20" max="250" value="80" step="5" class="w-full accent-cyber-accent h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        If consecutive clicks occur faster than this interval, it will be flagged as a hardware double-click error (chattering).
+                    </p>
+                </div>
+
+                <!-- Audio Feedback Toggles -->
+                <div class="mt-5 pt-4 border-t border-slate-800/80 space-y-3">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">Audio Options</span>
+                    
+                    <label class="flex items-center justify-between cursor-pointer group">
+                        <span class="text-sm text-slate-300 group-hover:text-white transition">Click Sound</span>
+                        <input type="checkbox" id="sound-click-toggle" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 peer-checked:after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyber-accent relative"></div>
+                    </label>
+
+                    <label class="flex items-center justify-between cursor-pointer group">
+                        <span class="text-sm text-slate-300 group-hover:text-white transition">Error Alarm Beep</span>
+                        <input type="checkbox" id="sound-error-toggle" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 peer-checked:after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyber-error relative"></div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Dashboard Stats Summary -->
+            <div class="bg-cyber-card border border-cyber-border rounded-2xl p-5 shadow-xl flex-grow flex flex-col justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-simple text-cyber-info"></i> Session Metrics
+                    </h2>
+
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <!-- Total Clicks -->
+                        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3">
+                            <span class="text-xs text-slate-400 block font-medium">Total Clicks</span>
+                            <span id="stat-total-clicks" class="text-2xl font-bold font-mono text-white">0</span>
+                        </div>
+
+                        <!-- Double Click Errors -->
+                        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3">
+                            <span class="text-xs text-slate-400 block font-medium">Double Click Errors</span>
+                            <span id="stat-errors" class="text-2xl font-bold font-mono text-cyber-error">0</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <!-- Minimum Latency -->
+                        <div class="flex justify-between items-center p-2.5 bg-slate-900/50 rounded-lg border border-slate-800/60 text-sm">
+                            <span class="text-slate-400 flex items-center gap-2">
+                                <i class="fa-solid fa-bolt text-amber-400 text-xs"></i> Min Interval
+                            </span>
+                            <span id="stat-min-interval" class="font-mono font-semibold text-slate-200">-- ms</span>
+                        </div>
+
+                        <!-- Average Latency -->
+                        <div class="flex justify-between items-center p-2.5 bg-slate-900/50 rounded-lg border border-slate-800/60 text-sm">
+                            <span class="text-slate-400 flex items-center gap-2">
+                                <i class="fa-solid fa-wave-square text-cyber-info text-xs"></i> Avg Interval
+                            </span>
+                            <span id="stat-avg-interval" class="font-mono font-semibold text-slate-200">-- ms</span>
+                        </div>
+
+                        <!-- Last Interval -->
+                        <div class="flex justify-between items-center p-2.5 bg-slate-900/50 rounded-lg border border-slate-800/60 text-sm">
+                            <span class="text-slate-400 flex items-center gap-2">
+                                <i class="fa-solid fa-clock-rotate-left text-slate-400 text-xs"></i> Last Interval
+                            </span>
+                            <span id="stat-last-interval" class="font-mono font-semibold text-slate-200">-- ms</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Per-Button breakdown -->
+                <div class="mt-5 pt-4 border-t border-slate-800/80">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-3">Buttons Clicked Breakdown</span>
+                    <div class="grid grid-cols-5 gap-1.5 text-center">
+                        <div class="bg-slate-900 border border-slate-800 p-2 rounded-lg">
+                            <span class="block text-[10px] text-slate-500 font-bold uppercase">LMB</span>
+                            <span id="btn-count-0" class="font-mono font-bold text-sm text-slate-200">0</span>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 p-2 rounded-lg">
+                            <span class="block text-[10px] text-slate-500 font-bold uppercase">MMB</span>
+                            <span id="btn-count-1" class="font-mono font-bold text-sm text-slate-200">0</span>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 p-2 rounded-lg">
+                            <span class="block text-[10px] text-slate-500 font-bold uppercase">RMB</span>
+                            <span id="btn-count-2" class="font-mono font-bold text-sm text-slate-200">0</span>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 p-2 rounded-lg">
+                            <span class="block text-[10px] text-slate-500 font-bold uppercase">MB4</span>
+                            <span id="btn-count-3" class="font-mono font-bold text-sm text-slate-200">0</span>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 p-2 rounded-lg">
+                            <span class="block text-[10px] text-slate-500 font-bold uppercase">MB5</span>
+                            <span id="btn-count-4" class="font-mono font-bold text-sm text-slate-200">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Column: Interactive Testing Canvas Box & Event Log (8 Cols) -->
+        <div class="lg:col-span-8 flex flex-col gap-6">
+
+            <!-- Interactive Click Test Canvas Box -->
+            <div id="test-box" class="relative bg-gradient-to-br from-amber-500 via-orange-600 to-orange-700 border-2 border-orange-400/50 rounded-2xl h-72 sm:h-80 flex flex-col items-center justify-center p-6 text-center shadow-2xl shadow-orange-950/40 cursor-pointer no-select transition-all duration-75 overflow-hidden">
+                <!-- Background Pattern overlay -->
+                <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none"></div>
+
+                <!-- Last Action Status Ribbon / Badge -->
+                <div id="status-badge" class="absolute top-4 bg-black/40 backdrop-blur-md text-amber-100 border border-white/20 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide uppercase shadow-lg transition">
+                    Ready For Testing
+                </div>
+
+                <!-- Main Interactive Label -->
+                <div class="z-10 pointer-events-none">
+                    <i class="fa-solid fa-hand-pointer text-5xl sm:text-6xl text-white/90 mb-3 drop-shadow-md"></i>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight drop-shadow">
+                        CLICK ANYWHERE IN THIS BOX
+                    </h2>
+                    <p class="text-orange-100 text-sm sm:text-base font-medium mt-1 max-w-md drop-shadow-sm">
+                        Supports Left, Right, Middle Wheel & Side Mouse Buttons
+                    </p>
+                </div>
+
+                <!-- Realtime Interval Display Overlay -->
+                <div class="z-10 mt-4 flex items-center gap-3">
+                    <span class="text-xs text-orange-200/80 uppercase font-mono tracking-wider font-semibold">Last Delta:</span>
+                    <span id="interval-display" class="font-mono text-xl sm:text-2xl font-bold bg-black/50 text-white px-3 py-1 rounded-lg border border-white/10 shadow-inner">
+                        0 ms
+                    </span>
+                </div>
+            </div>
+
+            <!-- Activity Log Section -->
+            <div class="bg-cyber-card border border-cyber-border rounded-2xl p-5 shadow-xl flex-grow flex flex-col">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-list-ul text-cyber-accent"></i> Real-time Activity Log
+                    </h2>
+                    <span id="log-count" class="text-xs font-mono text-slate-500">0 records</span>
+                </div>
+
+                <!-- Table Container -->
+                <div class="overflow-y-auto max-h-64 sm:max-h-72 border border-slate-800 rounded-xl bg-slate-900/60">
+                    <table class="w-full text-left text-xs sm:text-sm font-mono border-collapse">
+                        <thead class="bg-slate-900 text-slate-400 sticky top-0 border-b border-slate-800 font-sans uppercase text-[11px] tracking-wider">
+                            <tr>
+                                <th class="py-2.5 px-4 font-semibold">#</th>
+                                <th class="py-2.5 px-4 font-semibold">Button</th>
+                                <th class="py-2.5 px-4 font-semibold">Interval (ms)</th>
+                                <th class="py-2.5 px-4 font-semibold">Status</th>
+                                <th class="py-2.5 px-4 font-semibold text-right">Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="log-body" class="divide-y divide-slate-800/60 text-slate-300">
+                            <tr id="empty-log-row">
+                                <td colspan="5" class="py-8 text-center text-slate-500 font-sans text-sm">
+                                    No click events recorded yet. Start clicking inside the testing zone above.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-cyber-border py-4 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4">
+            Mouse Double-Click & Switch Chatter Tester &bull; Modern Cyber Edition
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // State variables
+            let lastClickTime = 0;
+            let totalClicks = 0;
+            let doubleClickErrors = 0;
+            let minInterval = null;
+            let totalIntervalSum = 0;
+            let intervalCount = 0;
+
+            const buttonCounts = {
+                0: 0, // Left
+                1: 0, // Middle
+                2: 0, // Right
+                3: 0, // Back / Side 1
+                4: 0  // Forward / Side 2
+            };
+
+            const buttonNames = {
+                0: 'LMB (Left)',
+                1: 'MMB (Wheel)',
+                2: 'RMB (Right)',
+                3: 'MB4 (Back)',
+                4: 'MB5 (Forward)'
+            };
+
+            // DOM Elements
+            const testBox = document.getElementById('test-box');
+            const thresholdSlider = document.getElementById('threshold-slider');
+            const thresholdVal = document.getElementById('threshold-val');
+            const soundClickToggle = document.getElementById('sound-click-toggle');
+            const soundErrorToggle = document.getElementById('sound-error-toggle');
+            const resetBtn = document.getElementById('reset-btn');
+
+            // Metric Displays
+            const statTotalClicks = document.getElementById('stat-total-clicks');
+            const statErrors = document.getElementById('stat-errors');
+            const statMinInterval = document.getElementById('stat-min-interval');
+            const statAvgInterval = document.getElementById('stat-avg-interval');
+            const statLastInterval = document.getElementById('stat-last-interval');
+            const intervalDisplay = document.getElementById('interval-display');
+            const statusBadge = document.getElementById('status-badge');
+            const logBody = document.getElementById('log-body');
+            const emptyLogRow = document.getElementById('empty-log-row');
+            const logCount = document.getElementById('log-count');
+
+            // Web Audio API Synth Synthesizer for UI Sounds
+            let audioCtx = null;
+            function initAudio() {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            }
+
+            function playSound(type) {
+                if (!audioCtx) return;
+                try {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+
+                    const now = audioCtx.currentTime;
+
+                    if (type === 'click' && soundClickToggle.checked) {
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(600, now);
+                        osc.frequency.exponentialRampToValueAtTime(200, now + 0.04);
+                        gain.gain.setValueAtTime(0.15, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+                        osc.start(now);
+                        osc.stop(now + 0.04);
+                    } else if (type === 'error' && soundErrorToggle.checked) {
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(150, now);
+                        osc.frequency.setValueAtTime(110, now + 0.08);
+                        gain.gain.setValueAtTime(0.3, now);
+                        gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                        osc.start(now);
+                        osc.stop(now + 0.25);
+                    }
+                } catch (e) {
+                    console.error('Audio playback error', e);
+                }
+            }
+
+            // Update Threshold Slider Label
+            thresholdSlider.addEventListener('input', (e) => {
+                thresholdVal.textContent = `${e.target.value} ms`;
+            });
+
+            // Prevent Context Menu inside test box
+            testBox.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+            });
+
+            // Prevent default back/forward behavior for MB4/MB5 in test area
+            testBox.addEventListener('mouseup', (e) => {
+                if (e.button === 3 || e.button === 4) {
+                    e.preventDefault();
+                }
+            });
+
+            // Handle Click Events inside Test Box
+            testBox.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                initAudio();
+
+                const now = performance.now();
+                const delta = lastClickTime === 0 ? 0 : Math.round(now - lastClickTime);
+                lastClickTime = now;
+
+                const buttonCode = e.button;
+                const threshold = parseInt(thresholdSlider.value, 10);
+
+                // Increment Counters
+                totalClicks++;
+                if (buttonCounts.hasOwnProperty(buttonCode)) {
+                    buttonCounts[buttonCode]++;
+                }
+
+                let isError = false;
+                if (delta > 0 && delta <= threshold) {
+                    isError = true;
+                    doubleClickErrors++;
+                }
+
+                // Update Interval Stats (Only if valid delta)
+                if (delta > 0) {
+                    if (minInterval === null || delta < minInterval) {
+                        minInterval = delta;
+                    }
+                    totalIntervalSum += delta;
+                    intervalCount++;
+                }
+
+                // Trigger visual feedback
+                triggerBoxAnimation(isError);
+                if (isError) {
+                    playSound('error');
+                } else {
+                    playSound('click');
+                }
+
+                // Update Metrics UI
+                updateDashboardUI(delta, isError, buttonCode);
+
+                // Append Log
+                addLogEntry(totalClicks, buttonNames[buttonCode] || `Button ${buttonCode}`, delta, isError);
+            });
+
+            // Visual feedback logic for testing canvas
+            function triggerBoxAnimation(isError) {
+                // Clear existing flash classes
+                testBox.classList.remove('test-box-error', 'test-box-success');
+                
+                // Force reflow
+                void testBox.offsetWidth;
+
+                if (isError) {
+                    testBox.classList.add('test-box-error');
+                    statusBadge.textContent = 'DOUBLE CLICK / CHATTER DETECTED!';
+                    statusBadge.className = 'absolute top-4 bg-red-950/90 text-red-200 border border-red-500/50 px-4 py-1.5 rounded-full text-xs font-bold tracking-wide uppercase shadow-lg shadow-red-900/50';
+                } else {
+                    testBox.classList.add('test-box-success');
+                    statusBadge.textContent = 'CLICK REGISTERED (OK)';
+                    statusBadge.className = 'absolute top-4 bg-emerald-950/90 text-emerald-200 border border-emerald-500/50 px-4 py-1.5 rounded-full text-xs font-bold tracking-wide uppercase shadow-lg';
+                }
+            }
+
+            // Update UI elements
+            function updateDashboardUI(delta, isError, buttonCode) {
+                statTotalClicks.textContent = totalClicks;
+                statErrors.textContent = doubleClickErrors;
+                intervalDisplay.textContent = `${delta} ms`;
+
+                if (minInterval !== null) {
+                    statMinInterval.textContent = `${minInterval} ms`;
+                }
+
+                if (intervalCount > 0) {
+                    const avg = Math.round(totalIntervalSum / intervalCount);
+                    statAvgInterval.textContent = `${avg} ms`;
+                }
+
+                statLastInterval.textContent = delta > 0 ? `${delta} ms` : '-- ms';
+
+                // Update specific button counter
+                const btnElem = document.getElementById(`btn-count-${buttonCode}`);
+                if (btnElem) {
+                    btnElem.textContent = buttonCounts[buttonCode];
+                    btnElem.classList.add('text-cyber-accent');
+                }
+            }
+
+            // Add Event to Log Table
+            function addLogEntry(index, buttonLabel, delta, isError) {
+                if (emptyLogRow) {
+                    emptyLogRow.style.display = 'none';
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = isError 
+                    ? 'bg-red-950/40 text-red-300 font-semibold border-b border-red-900/30' 
+                    : 'hover:bg-slate-800/40 border-b border-slate-800/60 transition';
+
+                const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+
+                let statusBadgeHTML = isError 
+                    ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-red-500/20 text-red-400 border border-red-500/30"><i class="fa-solid fa-triangle-exclamation"></i> CHATTER / ERROR</span>`
+                    : (delta > 0 && delta <= 120 
+                        ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30"><i class="fa-solid fa-bolt"></i> FAST</span>`
+                        : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"><i class="fa-solid fa-check"></i> OK</span>`);
+
+                tr.innerHTML = `
+                    <td class="py-2 px-4 text-slate-400">#${index}</td>
+                    <td class="py-2 px-4 font-sans font-medium text-slate-200">${buttonLabel}</td>
+                    <td class="py-2 px-4 font-mono">${delta > 0 ? delta + ' ms' : '--'}</td>
+                    <td class="py-2 px-4">${statusBadgeHTML}</td>
+                    <td class="py-2 px-4 text-right text-slate-500 text-xs">${timeStr}</td>
+                `;
+
+                // Insert at the top of table body
+                logBody.insertBefore(tr, logBody.firstChild);
+                logCount.textContent = `${totalClicks} records`;
+            }
+
+            // Reset All Stats
+            resetBtn.addEventListener('click', () => {
+                lastClickTime = 0;
+                totalClicks = 0;
+                doubleClickErrors = 0;
+                minInterval = null;
+                totalIntervalSum = 0;
+                intervalCount = 0;
+
+                for (let key in buttonCounts) {
+                    buttonCounts[key] = 0;
+                    const el = document.getElementById(`btn-count-${key}`);
+                    if (el) el.textContent = '0';
+                }
+
+                statTotalClicks.textContent = '0';
+                statErrors.textContent = '0';
+                statMinInterval.textContent = '-- ms';
+                statAvgInterval.textContent = '-- ms';
+                statLastInterval.textContent = '-- ms';
+                intervalDisplay.textContent = '0 ms';
+
+                statusBadge.textContent = 'Ready For Testing';
+                statusBadge.className = 'absolute top-4 bg-black/40 backdrop-blur-md text-amber-100 border border-white/20 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide uppercase shadow-lg';
+
+                // Clear Table
+                logBody.innerHTML = '';
+                logBody.appendChild(emptyLogRow);
+                emptyLogRow.style.display = 'table-row';
+                logCount.textContent = '0 records';
+            });
+        });
+    </script>
+</body>
+</html>
